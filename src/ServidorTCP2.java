@@ -8,7 +8,6 @@ public class ServidorTCP2 implements Runnable {
 	ServerSocket server;
 	Socket[] sortidaClients;
 	static int numClient;
-	boolean parar = false;
 	String cadena = "";
 
 	public ServidorTCP2(Socket clientConnectat, ServerSocket server, Socket[] sortidaClients) {
@@ -78,6 +77,7 @@ public class ServidorTCP2 implements Runnable {
 	@Override
 	public void run() {
 
+		boolean parar = false;
 		while (!parar) {
 
 			try {
