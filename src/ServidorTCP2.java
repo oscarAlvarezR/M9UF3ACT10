@@ -8,6 +8,7 @@ public class ServidorTCP2 implements Runnable {
 	ServerSocket server;
 	Socket[] sortidaClients;
 	static int numClient;
+	boolean parar = false;
 	String cadena = "";
 
 	public ServidorTCP2(Socket clientConnectat, ServerSocket server, Socket[] sortidaClients) {
@@ -37,80 +38,120 @@ public class ServidorTCP2 implements Runnable {
 
 		ServidorTCP2[] arrayRunnable = new ServidorTCP2[numClients];
 		Thread[] arrayThread = new Thread[numClients];
-		
+
 		// Determinem les vegades que es conectaran els clients
 		for (int i = 0; i < arrayRunnable.length; i++) {
 
-			Socket clientConnectat = servidor.accept();
+			boolean notNull = true;
+
+			Socket clientConnectat = null;
+			try {
+				clientConnectat = servidor.accept();
+
+			} catch (SocketException e) { 
+				notNull = false;
+			}
+
 			boolean stop = false;
-			
+
 			for (int j = 0; j < sortidaClients.length; j++) {
-				
-				if (sortidaClients[i] != null && stop == false) {
-					
+
+				if (sortidaClients[i] == null && stop == false) {
+
 					sortidaClients[i] = clientConnectat;
 					stop = true;
 				}
 			}
 
-			// Runnable
-			arrayRunnable[i] = new ServidorTCP2(clientConnectat, servidor, sortidaClients);
+			if (notNull) {
 
-			// Thread
-			arrayThread[i] = new Thread(arrayRunnable[i]);
-			arrayThread[i].start();
+				// Runnable
+				arrayRunnable[i] = new ServidorTCP2(clientConnectat, servidor, sortidaClients);
 
+				// Thread
+				arrayThread[i] = new Thread(arrayRunnable[i]);
+				arrayThread[i].start();
+			}
 		}
-
-
 	}
 
 	@Override
 	public void run() {
 
-		try {
-			PrintWriter fsortida = null;
-			BufferedReader fentrada = null;
+		while (!parar) {
 
-			System.out.println("Client " + this.numClient + " connectat... ");
+			try {
+				PrintWriter fsortida = null;
+				BufferedReader fentrada = null;
 
-			//FLUX DE SORTIDA AL CLIENT
-			fsortida = new PrintWriter(this.client.getOutputStream(), true);
+				System.out.println("Client " + this.numClient + " connectat... ");
 
+				try {
+					//FLUX DE SORTIDA AL CLIENT
+					fsortida = new PrintWriter(this.client.getOutputStream(), true);
 
-			//FLUX D'ENTRADA DEL CLIENT
-			fentrada = new BufferedReader(new InputStreamReader(this.client.getInputStream()));
-
-			if ((cadena = fentrada.readLine()) != null) {
-				
-				System.out.println("Nom Client " + this.numClient + ": " + cadena);
-			}
-			
-			
-			while ((cadena = fentrada.readLine()) != null) {
-
-				fsortida.println(cadena);
-				
-				for (int i = 0; i < sortidaClients.length; i++) {
+					//FLUX D'ENTRADA DEL CLIENT
+					fentrada = new BufferedReader(new InputStreamReader(this.client.getInputStream()));
 					
-					if (sortidaClients[i] != null) {
-						fsortida = new PrintWriter(this.sortidaClients[i].getOutputStream(), true);
-						fsortida.println("Client " + this.numClient + ": " + cadena);
+					if ((cadena = fentrada.readLine()) != null) {
+
+						System.out.println("Nom Client " + this.numClient + ": " + cadena);
+					}
+
+				} catch (SocketException e) { 
+					parar = true;
+				}
+
+				while (!parar) {
+
+					try {
+
+						cadena = fentrada.readLine();
+
+					} catch (SocketException e) {
+
+						parar = true;
+					}
+					
+					if (cadena == null || cadena.equals("")) {
+						
+						parar = true;
+					}
+
+					if (!parar) {
+
+
+						fsortida.println(cadena);
+
+						if (cadena != null) {
+
+							for (int i = 0; i < sortidaClients.length; i++) {
+
+								if (sortidaClients[i] != null) {
+									fsortida = new PrintWriter(this.sortidaClients[i].getOutputStream(), true);
+									fsortida.println(cadena);
+								}
+							}
+
+							System.out.println("Rebent: "+cadena);
+						}
 					}
 				}
 				
-				System.out.println("Rebent: "+cadena);
-				if (cadena.equals("*")) break;
+				try {
+					fentrada.close();
+					fsortida.close();
+				} catch (NullPointerException e) {
+					// TODO: handle exception
+				}
+				
+				this.client.close();
+				this.server.close();
 
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			fentrada.close();
-			fsortida.close();
-			this.client.close();
-			this.server.close();
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		}
 
 	}
